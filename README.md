@@ -2,10 +2,11 @@
 
 继承既有对话的**主干**。用法：`/resume-conversation-brief <对话名>`。只读、不搬移。
 
-## 适用对象
+## 环境依赖
 
-- DeepSeek Harness（DSH）用户：一个可由 AI agent 按需自动加载的 skill，克隆即用、无需构建。
-- 需要继承既有对话主干（结论/决策/待办）的人
+- 操作系统：Windows
+- 运行时：无（纯指令型 skill，由 agent 直接执行）
+- 第三方软件：无（仅依赖系统自带的 PowerShell / 标准库）
 
 ## 目录结构
 
