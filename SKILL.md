@@ -1,11 +1,11 @@
 ---
 name: resume-conversation-brief
-description: 在对话中用 `/resume-conversation-brief <对话名>` 继承既有迁移对话的主干——按对话名定位 conversations/*.md，分段 map-reduce 精炼成可追溯快照（每结论引用来源），不搬移项目文件。Use when the user types "/resume-conversation-brief <名字>" or asks for a migrated conversation's distilled gist. Not for full-detail reading or moving files.
+description: 在对话中用 `/resume-conversation-brief <对话名>` 继承既有对话的主干——遍历可插拔的会话源（conversation-sources 注册表）定位对话，分段 map-reduce 精炼成可追溯快照（每结论引用来源），不搬移文件。Use when the user types "/resume-conversation-brief <名字>" or asks for a conversation's distilled gist. Not for full-detail reading or moving files.
 ---
 
 # Resume Conversation (Brief)
 
-继承既有迁移对话的**主干**。用法：`/resume-conversation-brief <对话名>`。只读、不搬移。
+继承既有对话的**主干**。用法：`/resume-conversation-brief <对话名>`。只读、不搬移。
 
 ## 何时用
 
@@ -17,30 +17,25 @@ description: 在对话中用 `/resume-conversation-brief <对话名>` 继承既�
 - 要精确细节 → 用 `resume-conversation-full`。
 - 要搬移/复制项目文件 → 本 skill 不做，直接拒绝。
 
-## 定位对话（三级回退，同 full 版）
+## 定位对话（会话源遍历，框架无关）
 
-> ⚠️ 坑：`glob` 在 Windows 绝对路径 + 反斜杠 + `**` 下会静默返回空。递归找文件改用 `pwsh Get-ChildItem -Recurse`。
+1. 读 `references/conversation-sources.md`（会话源注册表），按里面的优先级**从上到下遍历**每个会话源。
+2. 对每个源，用该源声明的「定位」方法尝试定位「对话名」。
+3. 命中 → 用该源声明的「读取主干」方法读。
+4. 全部源都未命中 → 报告「未找到对话『X』」，列出各源返回的可用清单，不猜测。
 
-1. **第一级：Codex 迁移 .md**——`G:\CodexDS\DSH\MAIN` 下 pwsh 递归找 `conversations\*.md`，文件名去 .md 前缀匹配对话名。
-2. **第二级：索引映射**——无语义名读 `_migrated_codex\conversations\index.md` 标题列映射。
-3. **第三级：DSH 原生会话回退**——前两级找不到，用 `session_query`（query=对话名）查原生会话，命中后读 `~/.dsh\storages\session_projcache\sessions\<session-id>.json`（turn outline 即可，brief 够用，不必解压 .zstd）。
-4. 三级都失败：报告「未找到」，列出可用清单，不猜测。
+**本正文不写死任何框架的会话机制**：`session_query`、`.zstd` 解压、迁移目录路径等，都在注册表里。换框架/换机器 = 改注册表，本正文不动。
 
 ## 精炼快照（map-reduce，每结论引用来源）
 
-**源 A：Codex 迁移 .md**
-- 文件 ≤ 约 40k 字符：直接读，然后精炼。
-- 文件 > 40k 字符：**分段读（read offset/limit），逐段提炼「段摘要」，最后合并成总快照**——不静默丢中间内容（map-reduce，借鉴 claude-handoff 的大会话分块总结）。
+按命中源在注册表里声明的「读取主干」方法读（分段精炼，不静默丢内容）。
 
-**源 B：DSH 原生会话**
-- 直接读 projcache JSON 的 turn outline（prompt/response 摘要 + 统计），据此精炼，无需分段读 .zstd 全文。
-
-快照固定结构，且**每一条结论标注来源**（哪个 .md 或哪个 session-id）：
+快照固定结构，且**每一条结论标注来源**（哪个文件或哪个 session-id）：
 
 ```markdown
 # 对话快照：<对话名>
 
-- 来源：<文件路径>
+- 来源：<文件路径 / session-id>
 
 ## 这是什么
 （一句话：对话在做什么/解决什么）
@@ -63,7 +58,7 @@ description: 在对话中用 `/resume-conversation-brief <对话名>` 继承既�
 ## 铁律
 
 - **只读、不搬移**：绝不复制、移动、修改任何文件。
-- **每结论可追溯**：快照里的每一条结论/决策/待办，标注出自哪个 .md 或哪个 session-id（借鉴 claude-handoff 的「每 bullet 引用来源」）。
+- **每结论可追溯**：快照里的每一条结论/决策/待办，标注出自哪个 .md 或哪个 session-id。
 - **不静默丢内容**：大文件分段读完再合并，读不完明说。
 - **快照是摘要，不是原文**：明确告诉用户「这是主干，需要细节请用 resume-conversation-full」。
-- **定位优先三级回退**：Codex .md → 索引映射 → session_query 原生会话，不要只在 MAIN 找 .md 就放弃。
+- **遍历所有会话源**：按注册表优先级逐个试，不在第一个源就放弃。
